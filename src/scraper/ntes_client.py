@@ -125,10 +125,27 @@ def _parse_tab(text: str, train_number: str) -> TrainRun | None:
     # sched_arr date | actual_arr date | delay | STATION_NAME | STN_CODE | PF N | ... | distance | KMs | sched_dep date | actual_dep date | delay
     seq = 0
     i = 0
+    in_coach_block = False
     while i < len(parts):
+        p = parts[i]
+
+        # Track coach position blocks — skip everything inside them
+        if "Coach Position" in p and ":" in p:
+            in_coach_block = True
+            i += 1
+            continue
+        if in_coach_block:
+            if p == "Close" or (i + 1 < len(parts) and _TIME_RE.search(parts[i + 1]) and p not in ("×", "Note - Data shown with (*) are dynamic in nature and may change.")):
+                in_coach_block = False
+                if p == "Close":
+                    i += 1
+                    continue
+            else:
+                i += 1
+                continue
+
         # Station detection: look for a known station code pattern
         # Station codes are 2-5 uppercase alpha, NOT in coach codes, preceded by station name
-        p = parts[i]
         if (
             2 <= len(p) <= 5
             and p.isalpha()
