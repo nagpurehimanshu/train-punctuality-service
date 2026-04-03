@@ -1,0 +1,43 @@
+name: Daily Train Data Collection
+
+on:
+  schedule:
+    # Every 30 min from 00:30 to 18:30 UTC (6:00 AM to midnight IST)
+    - cron: '0,30 0-18 * * *'
+  workflow_dispatch:
+    inputs:
+      train_number:
+        description: 'Single train number (leave empty for all)'
+        required: false
+      backfill:
+        description: 'Store all dates shown, not just latest'
+        type: boolean
+        default: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-collector.txt
+          playwright install chromium
+
+      - name: Run collector
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          if [ -n "${{ github.event.inputs.train_number }}" ]; then
+            python -m src.collector.daily_collector --train ${{ github.event.inputs.train_number }} ${{ github.event.inputs.backfill == 'true' && '--backfill' || '' }}
+          else
+            python -m src.collector.daily_collector --all
+          fi
