@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Parse NTES HTML responses into structured data."""
 
 from dataclasses import dataclass, field
@@ -47,6 +49,7 @@ class ScheduleStop:
 
 def parse_running_status(html: str, train_number: str) -> RunningStatus | None:
     """Parse NTES running status HTML into RunningStatus.
+
 
     NTES response format varies — this parser handles the common table-based layout.
     Returns None if the response can't be parsed or train is not found.

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """IST time handling and delay computation."""
 
 from datetime import datetime, timedelta, timezone
@@ -15,6 +17,7 @@ def today_ist() -> str:
 
 def parse_hhmm(time_str: str | None) -> timedelta | None:
     """Parse 'HH:MM' to timedelta from midnight."""
+
     if not time_str:
         return None
     h, m = map(int, time_str.strip().split(":"))

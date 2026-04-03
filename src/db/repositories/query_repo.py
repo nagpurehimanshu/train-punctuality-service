@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Query repositories for API endpoints."""
 
 from src.db.database import get_connection
@@ -5,6 +7,7 @@ from src.db.database import get_connection
 
 def _rows_to_dicts(cursor_result, columns: list[str]) -> list[dict]:
     """Convert libsql rows to dicts since libsql doesn't support dict(row)."""
+
     return [dict(zip(columns, row)) for row in cursor_result]
 
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Seasonal and calendar flag detection."""
 
 from datetime import date

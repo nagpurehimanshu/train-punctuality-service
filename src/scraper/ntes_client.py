@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 """NTES scraper using Playwright headless browser.
 
 NTES is JS-rendered with CSRF protection — httpx gets blocked.
 Playwright loads the page like a real browser and extracts data from the rendered DOM.
 """
+
 
 import re
 from dataclasses import dataclass, field

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Prediction engine — predicts delays at each station for a train.
 
 Uses tiered approach:
@@ -6,6 +8,7 @@ Uses tiered approach:
 
 Confidence is based on data sufficiency and variance.
 """
+
 
 import math
 from src.db.repositories.query_repo import get_avg_delay_by_station

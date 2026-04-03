@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 """Turso database client using HTTP pipeline API.
 
 No Rust compilation needed. Works on Render free tier.
 Falls back to local SQLite for development when TURSO_DATABASE_URL is not set.
 """
+
 
 import sqlite3
 from pathlib import Path
