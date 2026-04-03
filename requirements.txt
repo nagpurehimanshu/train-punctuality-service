@@ -1,5 +1,4 @@
-# API server deps only (no Playwright/scraping — that runs on GitHub Actions)
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
-libsql-experimental>=0.0.50
+httpx>=0.27.0
 python-dotenv>=1.0.0
