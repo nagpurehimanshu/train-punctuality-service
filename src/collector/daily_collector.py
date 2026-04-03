@@ -6,7 +6,7 @@ Usage: python -m src.collector.daily_collector [--train 12301] [--all]
 
 import argparse
 import sys
-from src.db.database import init_db, get_connection
+from src.db.database import get_connection
 from src.scraper.ntes_client import create_browser, scrape_single_date, scrape_train
 from src.db.repositories.daily_run_repo import upsert_daily_run
 from src.utils.logger import get_logger
@@ -66,8 +66,6 @@ def main():
     parser.add_argument("--all", action="store_true", help="Collect all active trains")
     parser.add_argument("--backfill", action="store_true", help="Store all dates shown (not just latest)")
     args = parser.parse_args()
-
-    init_db()
 
     if args.train:
         browser = create_browser()
