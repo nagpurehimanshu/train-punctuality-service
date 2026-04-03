@@ -47,14 +47,13 @@ def scrape_train(train_number: str, browser: Browser) -> list[TrainRun]:
     """Scrape NTES for a train's running status. Returns runs for all dates shown."""
     page = browser.new_page()
     try:
-        page.goto(NTES_URL, timeout=30000)
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(2000)
+        page.goto(NTES_URL, timeout=60000, wait_until="domcontentloaded")
+        page.wait_for_timeout(3000)
 
         page.fill('input[name="trainNo"]', train_number)
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
         page.keyboard.press("Enter")
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(8000)
 
         return _parse_page(page, train_number)
     except Exception as e:
