@@ -31,10 +31,24 @@ jobs:
           pip install -r requirements-collector.txt
           playwright install chromium
 
+      - name: Start SOCKS proxy via Oracle VM
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          ORACLE_VM_IP: ${{ secrets.ORACLE_VM_IP }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/oracle_key
+          chmod 600 ~/.ssh/oracle_key
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            -D 1080 -f -N \
+            -i ~/.ssh/oracle_key opc@$ORACLE_VM_IP
+          echo "SOCKS proxy started on localhost:1080"
+
       - name: Run collector
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          PROXY_SERVER: socks5://localhost:1080
         run: |
           if [ -n "${{ github.event.inputs.train_number }}" ]; then
             python -m src.collector.daily_collector --train ${{ github.event.inputs.train_number }} ${{ github.event.inputs.backfill == 'true' && '--backfill' || '' }}

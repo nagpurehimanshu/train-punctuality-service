@@ -258,6 +258,14 @@ def _extract_forward(parts: list[str], start_idx: int, stop: StopTime):
 
 
 def create_browser() -> Browser:
-    """Create a reusable Playwright browser instance."""
+    """Create a reusable Playwright browser instance.
+    
+    Uses SOCKS5 proxy if PROXY_SERVER env var is set (e.g. socks5://localhost:1080).
+    This is used in GitHub Actions to route traffic through an Indian IP.
+    """
+    import os
     pw = sync_playwright().start()
+    proxy_server = os.environ.get("PROXY_SERVER")
+    if proxy_server:
+        return pw.chromium.launch(headless=True, proxy={"server": proxy_server})
     return pw.chromium.launch(headless=True)
