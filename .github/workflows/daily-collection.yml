@@ -23,10 +23,6 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 350
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3, 4]
 
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +50,7 @@ jobs:
             -i ~/.ssh/oracle_key opc@$ORACLE_VM_IP
           echo "SOCKS proxy started on localhost:1080"
 
-      - name: Run collector (shard ${{ matrix.shard }}/10)
+      - name: Run collector
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
@@ -63,5 +59,5 @@ jobs:
           if [ -n "${{ github.event.inputs.train_number }}" ]; then
             python -m src.collector.daily_collector --train ${{ github.event.inputs.train_number }} ${{ github.event.inputs.backfill == 'true' && '--backfill' || '' }}
           else
-            python -m src.collector.daily_collector --all --shard ${{ matrix.shard }} --total-shards 5
+            python -m src.collector.daily_collector --all
           fi
