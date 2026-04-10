@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        shard: [0, 1, 2]
 
     steps:
       - uses: actions/checkout@v4
@@ -63,5 +63,5 @@ jobs:
           if [ -n "${{ github.event.inputs.train_number }}" ]; then
             python -m src.collector.daily_collector --train ${{ github.event.inputs.train_number }} ${{ github.event.inputs.backfill == 'true' && '--backfill' || '' }}
           else
-            python -m src.collector.daily_collector --all --shard ${{ matrix.shard }} --total-shards 10
+            python -m src.collector.daily_collector --all --shard ${{ matrix.shard }} --total-shards 3
           fi

@@ -3,12 +3,13 @@
 Designed to run as a GitHub Actions cron job with parallel shards.
 Usage:
   python -m src.collector.daily_collector --all
-  python -m src.collector.daily_collector --all --shard 0 --total-shards 10
+  python -m src.collector.daily_collector --all --shard 0 --total-shards 3
   python -m src.collector.daily_collector --train 12301
 """
 
 import argparse
 import sys
+import time
 from src.db.database import get_connection
 from src.scraper.ntes_client import create_browser, scrape_single_date, scrape_train
 from src.db.repositories.daily_run_repo import upsert_daily_run
@@ -17,22 +18,33 @@ from src.utils.time_utils import now_ist
 
 log = get_logger(__name__)
 
+MAX_RETRIES = 2
+RETRY_DELAYS = [10, 30]
+
 
 def collect_train(train_number: str, browser, backfill: bool = False) -> int:
-    """Collect data for a single train. Returns number of runs stored."""
-    if backfill:
-        runs = scrape_train(train_number, browser)
-    else:
-        run = scrape_single_date(train_number, browser)
-        runs = [run] if run else []
+    """Collect data for a single train with retry on transient errors."""
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            if backfill:
+                runs = scrape_train(train_number, browser)
+            else:
+                run = scrape_single_date(train_number, browser)
+                runs = [run] if run else []
 
-    stored = 0
-    for run in runs:
-        if run and run.stops:
-            upsert_daily_run(run)
-            log.info(f"{run.train_number} {run.start_date}: {run.status}, {len(run.stops)} stops")
-            stored += 1
-    return stored
+            stored = 0
+            for run in runs:
+                if run and run.stops:
+                    upsert_daily_run(run)
+                    log.info(f"{run.train_number} {run.start_date}: {run.status}, {len(run.stops)} stops")
+                    stored += 1
+            return stored
+        except Exception as e:
+            if attempt < MAX_RETRIES and ("SOCKS" in str(e) or "net::" in str(e) or "Timeout" in str(e)):
+                log.warning(f"{train_number} attempt {attempt + 1} failed: {e}, retrying in {RETRY_DELAYS[attempt]}s")
+                time.sleep(RETRY_DELAYS[attempt])
+            else:
+                raise
 
 
 def collect_all(backfill: bool = False, shard: int | None = None, total_shards: int | None = None):
