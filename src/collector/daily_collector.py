@@ -48,22 +48,31 @@ def collect_train(train_number: str, browser, backfill: bool = False) -> int:
 
 
 def collect_all(backfill: bool = False, shard: int | None = None, total_shards: int | None = None):
-    """Collect data for all active trains, optionally limited to a shard."""
+    """Collect data for trains running today, optionally limited to a shard."""
+    import json
+
     conn = get_connection()
+    today_name = now_ist().strftime("%a")  # Mon, Tue, ...
+
     rows = conn.execute(
-        "SELECT train_number FROM trains WHERE is_active=1 ORDER BY train_number"
+        "SELECT train_number, run_days FROM trains WHERE is_active=1 ORDER BY train_number"
     ).fetchall()
-    train_numbers = [r[0] for r in rows]
+
+    train_numbers = []
+    for r in rows:
+        rd = json.loads(r[1])
+        if "Daily" in rd or today_name in rd:
+            train_numbers.append(r[0])
 
     if not train_numbers:
-        log.warning("No trains in database. Seed train data first.")
+        log.warning("No trains scheduled for today.")
         return
 
     if shard is not None and total_shards is not None:
         train_numbers = [t for i, t in enumerate(train_numbers) if i % total_shards == shard]
-        log.info(f"Shard {shard}/{total_shards}: {len(train_numbers)} trains (backfill={backfill})")
+        log.info(f"Shard {shard}/{total_shards}: {len(train_numbers)} trains for {today_name} (backfill={backfill})")
     else:
-        log.info(f"Collecting {len(train_numbers)} trains (backfill={backfill})")
+        log.info(f"Collecting {len(train_numbers)} trains for {today_name} (backfill={backfill})")
 
     browser = create_browser()
     total = 0
