@@ -1,7 +1,10 @@
 """Daily collector — scrapes NTES and stores results in Turso.
 
-Designed to run as a GitHub Actions cron job.
-Usage: python -m src.collector.daily_collector [--train 12301] [--all]
+Designed to run as a GitHub Actions cron job with parallel shards.
+Usage:
+  python -m src.collector.daily_collector --all
+  python -m src.collector.daily_collector --all --shard 0 --total-shards 10
+  python -m src.collector.daily_collector --train 12301
 """
 
 import argparse
@@ -32,17 +35,24 @@ def collect_train(train_number: str, browser, backfill: bool = False) -> int:
     return stored
 
 
-def collect_all(backfill: bool = False):
-    """Collect data for all active trains in the database."""
+def collect_all(backfill: bool = False, shard: int | None = None, total_shards: int | None = None):
+    """Collect data for all active trains, optionally limited to a shard."""
     conn = get_connection()
-    rows = conn.execute("SELECT train_number FROM trains WHERE is_active=1").fetchall()
+    rows = conn.execute(
+        "SELECT train_number FROM trains WHERE is_active=1 ORDER BY train_number"
+    ).fetchall()
     train_numbers = [r[0] for r in rows]
 
     if not train_numbers:
         log.warning("No trains in database. Seed train data first.")
         return
 
-    log.info(f"Collecting {len(train_numbers)} trains (backfill={backfill})")
+    if shard is not None and total_shards is not None:
+        train_numbers = [t for i, t in enumerate(train_numbers) if i % total_shards == shard]
+        log.info(f"Shard {shard}/{total_shards}: {len(train_numbers)} trains (backfill={backfill})")
+    else:
+        log.info(f"Collecting {len(train_numbers)} trains (backfill={backfill})")
+
     browser = create_browser()
     total = 0
     errors = 0
@@ -65,6 +75,8 @@ def main():
     parser.add_argument("--train", help="Single train number to collect")
     parser.add_argument("--all", action="store_true", help="Collect all active trains")
     parser.add_argument("--backfill", action="store_true", help="Store all dates shown (not just latest)")
+    parser.add_argument("--shard", type=int, help="Shard index (0-based)")
+    parser.add_argument("--total-shards", type=int, help="Total number of shards")
     args = parser.parse_args()
 
     if args.train:
@@ -75,7 +87,7 @@ def main():
         finally:
             browser.close()
     elif args.all:
-        collect_all(args.backfill)
+        collect_all(args.backfill, args.shard, args.total_shards)
     else:
         parser.print_help()
         sys.exit(1)

@@ -6,14 +6,19 @@ Predicts Indian Railways train arrival/departure times with confidence scores ba
 
 - **API**: https://train-punctuality-service.onrender.com
 - **Database**: Turso (cloud SQLite, Mumbai region)
-- **Collector**: Oracle Cloud VM (Hyderabad), cron every 30 min
+- **Collector**: GitHub Actions (cron) → SOCKS proxy through Oracle Cloud VM (Indian IP)
 
 ## Architecture
 
 ```
-Oracle VM (India)  →  Turso (cloud SQLite)  ←  Render.com (FastAPI)
-  Playwright scraper      shared database         API server
-  cron every 30 min        5GB free               750 hrs/mo free
+GitHub Actions (cron)  ──SSH tunnel──▶  Oracle VM (India)  ──▶  NTES
+  Playwright + Python       SOCKS5 proxy on :1080              Indian Railways
+  every 30 min              routes traffic via Indian IP        live train data
+       │
+       ▼
+  Turso (cloud SQLite)  ◀──  Render.com (FastAPI)
+    shared database            API server
+    5GB free                   750 hrs/mo free
 ```
 
 ## API Endpoints
@@ -62,33 +67,27 @@ uvicorn src.main:app --reload --port 8080
 - Start: `uvicorn src.main:app --host 0.0.0.0 --port $PORT`
 - Env vars: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`
 
-### Collector (Oracle Cloud VM)
-The collector runs on an Always Free Oracle Cloud VM in India (required — NTES blocks non-Indian IPs).
+### Collector (GitHub Actions + Oracle VM SOCKS Proxy)
+Data collection runs on **GitHub Actions** (cron every 30 min). NTES blocks non-Indian IPs, so
+Playwright traffic is routed through an **Oracle Cloud VM in India** via an SSH SOCKS5 tunnel.
 
-**VM specs**: 1 OCPU, 503MB RAM + 2.5GB swap, Oracle Linux 9.7
+**How it works**:
+1. GitHub Actions starts, opens SSH tunnel to Oracle VM (`ssh -D 1080`)
+2. Playwright launches Chromium with `PROXY_SERVER=socks5://localhost:1080`
+3. All browser traffic exits through the Oracle VM's Indian IP
+4. Scraped data is written directly to Turso (cloud SQLite)
 
-**What's installed**:
-- Python 3.9 + pip (system)
-- Playwright + Chromium headless shell
-- Chromium system libs (installed manually via rpm2cpio — yum/dnf OOMs on 503MB)
+**GitHub Secrets required**:
+| Secret | Description |
+|--------|-------------|
+| `ORACLE_SSH_KEY` | SSH private key for `opc@<VM_IP>` |
+| `ORACLE_VM_IP` | Oracle VM public IP (Hyderabad region) |
+| `TURSO_DATABASE_URL` | Turso database URL |
+| `TURSO_AUTH_TOKEN` | Turso auth token |
 
-**Cron jobs** (IST = UTC+5:30):
-| Schedule | Job |
-|----------|-----|
-| Every 30 min, midnight–6:30 PM IST | `python3 -m src.collector.daily_collector --all` |
-| Daily 7 PM IST | Log rotation (keeps 7 days, rotates at 1MB) |
+**Oracle VM role**: SOCKS proxy only — no Python, no Playwright, no cron on the VM itself.
 
-**Health check from your Mac**:
-```bash
-ssh -i ~/Downloads/ssh-key-2026-04-03.key opc@92.4.90.157 "bash /home/opc/train-punctuality-service/scripts/health_check.sh"
-```
-
-**Tail logs**:
-```bash
-ssh -i ~/Downloads/ssh-key-2026-04-03.key opc@92.4.90.157 "tail -20 /home/opc/collector.log"
-```
-
-**VM SSH**:
+**VM SSH** (for debugging proxy):
 ```bash
 ssh -i ~/Downloads/ssh-key-2026-04-03.key opc@92.4.90.157
 ```
@@ -106,4 +105,4 @@ All infrastructure is free tier — no credit card charges.
 |-----------|---------|-----------|
 | Database | Turso | 5GB storage, 500M reads/mo |
 | API | Render.com | 750 hrs/mo, sleeps after 15min idle |
-| Collector | Oracle Cloud VM | Always Free (1 OCPU, 1GB RAM) |
+| Collector | GitHub Actions + Oracle VM | GH Actions: 2000 min/mo free; Oracle VM: Always Free |
