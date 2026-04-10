@@ -2,8 +2,8 @@ name: Daily Train Data Collection
 
 on:
   schedule:
-    # Every 30 min from 00:30 to 18:30 UTC (6:00 AM to midnight IST)
-    - cron: '0,30 0-18 * * *'
+    # Once daily at 20:00 UTC (1:30 AM IST) — most trains completed by then
+    - cron: '0 20 * * *'
   workflow_dispatch:
     inputs:
       train_number:
